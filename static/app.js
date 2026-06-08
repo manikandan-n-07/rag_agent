@@ -8,7 +8,7 @@
 // ──────────────────────────────────────────────────────────
 const state = {
   currentChatId: null,
-  isStreaming:   false,
+  isStreaming: false,
 };
 
 // ──────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ initTheme();
 // ──────────────────────────────────────────────────────────
 const RING_C = 138.2; // 2π × r=22
 function updateRing(pct) {
-  const ring  = el('ringFill');
+  const ring = el('ringFill');
   const label = el('progressPct');
   if (!ring || !label) return;
   ring.style.strokeDashoffset = RING_C - (pct / 100) * RING_C;
@@ -64,10 +64,10 @@ function showToast(msg, type = 'info', ms = 3200) {
 function showConfirm({ title, body, confirmText = 'Confirm', cancelText = 'Cancel' }) {
   return new Promise(resolve => {
     const backdrop = el('confirmBackdrop');
-    el('confirmTitle').textContent   = title;
-    el('confirmBody').textContent    = body;
-    el('confirmOk').textContent      = confirmText;
-    el('confirmCancel').textContent  = cancelText;
+    el('confirmTitle').textContent = title;
+    el('confirmBody').textContent = body;
+    el('confirmOk').textContent = confirmText;
+    el('confirmCancel').textContent = cancelText;
 
     // Animate in
     requestAnimationFrame(() => backdrop.classList.add('visible'));
@@ -81,10 +81,10 @@ function showConfirm({ title, body, confirmText = 'Confirm', cancelText = 'Cance
       document.removeEventListener('keydown', onEsc);
     }
 
-    const onOk       = () => close(true);
-    const onCancel   = () => close(false);
+    const onOk = () => close(true);
+    const onCancel = () => close(false);
     const onBackdrop = (e) => { if (e.target === backdrop) close(false); };
-    const onEsc      = (e) => { if (e.key === 'Escape') close(false); };
+    const onEsc = (e) => { if (e.key === 'Escape') close(false); };
 
     el('confirmOk').addEventListener('click', onOk);
     el('confirmCancel').addEventListener('click', onCancel);
@@ -99,12 +99,12 @@ function showConfirm({ title, body, confirmText = 'Confirm', cancelText = 'Cance
 function showPrompt({ title, body, defaultValue = '', confirmText = 'Save', cancelText = 'Cancel' }) {
   return new Promise(resolve => {
     const backdrop = el('promptBackdrop');
-    const input    = el('promptInput');
-    el('promptTitle').textContent   = title;
-    el('promptBody').textContent    = body;
-    el('promptOk').textContent      = confirmText;
-    el('promptCancel').textContent  = cancelText;
-    input.value                     = defaultValue;
+    const input = el('promptInput');
+    el('promptTitle').textContent = title;
+    el('promptBody').textContent = body;
+    el('promptOk').textContent = confirmText;
+    el('promptCancel').textContent = cancelText;
+    input.value = defaultValue;
 
     // Animate in
     requestAnimationFrame(() => {
@@ -122,10 +122,10 @@ function showPrompt({ title, body, defaultValue = '', confirmText = 'Save', canc
       document.removeEventListener('keydown', onKeydown);
     }
 
-    const onOk       = () => close(input.value);
-    const onCancel   = () => close(null);
+    const onOk = () => close(input.value);
+    const onCancel = () => close(null);
     const onBackdrop = (e) => { if (e.target === backdrop) close(null); };
-    const onKeydown  = (e) => { 
+    const onKeydown = (e) => {
       if (e.key === 'Escape') close(null);
       if (e.key === 'Enter') close(input.value);
     };
@@ -228,25 +228,33 @@ async function createNewChat() {
 
 document.addEventListener('DOMContentLoaded', () => {
   el('btnNewChat').addEventListener('click', createNewChat);
-  el('btnStart').addEventListener('click',   createNewChat);
+  el('btnStart').addEventListener('click', createNewChat);
 });
 
 // ──────────────────────────────────────────────────────────
 // Switch to chat
 // ──────────────────────────────────────────────────────────
 async function switchToChat(chatId) {
+  // If we were streaming in another chat, abort and reset
+  if (state.isStreaming && _chatAbort) {
+    _chatAbort.abort();
+  }
   state.currentChatId = chatId;
+  state.isStreaming = false;
+  el('btnStop').style.display = 'none';
+  el('btnSend').style.display = 'flex';
+  document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
 
   // Show chat UI
-  el('welcomeScreen').style.display  = 'none';
-  el('chatContainer').style.display  = 'flex';
+  el('welcomeScreen').style.display = 'none';
+  el('chatContainer').style.display = 'flex';
   el('chatContainer').style.flexDirection = 'column';
 
   // Topbar
   const chat = await api('GET', `/api/chat/${chatId}`);
   el('chatTitleDisplay').textContent = chat.title;
-  el('chatIdBadge').style.display    = 'flex';
-  el('chatIdValue').textContent      = chatId;
+  el('chatIdBadge').style.display = 'flex';
+  el('chatIdValue').textContent = chatId;
 
   // Highlight active sidebar item
   document.querySelectorAll('.chat-item').forEach(e => {
@@ -257,7 +265,7 @@ async function switchToChat(chatId) {
   await loadHistory(chatId);
   el('questionInput').focus();
   updateSendBtn();
-  
+
   if (window.closeSidebarMobile) window.closeSidebarMobile();
 }
 
@@ -267,19 +275,19 @@ async function switchToChat(chatId) {
 async function deleteChat(chatId, e) {
   e.stopPropagation();
   const confirmed = await showConfirm({
-    title:       'Delete Chat?',
-    body:        'This will permanently delete this chat and all its messages. This cannot be undone.',
+    title: 'Delete Chat?',
+    body: 'This will permanently delete this chat and all its messages. This cannot be undone.',
     confirmText: 'Delete',
-    cancelText:  'Cancel',
+    cancelText: 'Cancel',
   });
   if (!confirmed) return;
   try {
     await api('DELETE', `/api/chat/${chatId}`);
     if (state.currentChatId === chatId) {
       state.currentChatId = null;
-      el('welcomeScreen').style.display  = '';
-      el('chatContainer').style.display  = 'none';
-      el('chatIdBadge').style.display    = 'none';
+      el('welcomeScreen').style.display = '';
+      el('chatContainer').style.display = 'none';
+      el('chatIdBadge').style.display = 'none';
       el('chatTitleDisplay').textContent = 'Select or Create a Chat';
     }
     await loadChatList();
@@ -302,7 +310,7 @@ async function renameChat(chatId, oldTitle, e) {
     cancelText: 'Cancel'
   });
   if (!newTitle || newTitle.trim() === '' || newTitle === oldTitle) return;
-  
+
   try {
     await api('PUT', `/api/chat/${chatId}/rename`, { title: newTitle.trim() });
     if (state.currentChatId === chatId) {
@@ -321,10 +329,10 @@ async function renameChat(chatId, oldTitle, e) {
 async function removeDocument(chatId, docId, filename, e) {
   e.stopPropagation();
   const confirmed = await showConfirm({
-    title:       `Remove "${filename}"?`,
-    body:        'This will remove the document and all its indexed chunks from this chat. The chat history will be kept but answers may change.',
+    title: `Remove "${filename}"?`,
+    body: 'This will remove the document and all its indexed chunks from this chat. The chat history will be kept but answers may change.',
     confirmText: 'Remove',
-    cancelText:  'Cancel',
+    cancelText: 'Cancel',
   });
   if (!confirmed) return;
   try {
@@ -346,15 +354,15 @@ async function shareChat(chatId, e) {
   e.stopPropagation();
   try {
     const data = await api('GET', `/api/chat/${chatId}/share`);
-    const shareUrl  = `${window.location.origin}/?chat=${data.chat_id}`;
+    const shareUrl = `${window.location.origin}/?chat=${data.chat_id}`;
     const shareText = `📂 ${data.title || 'RAG Chat'}\nExplore this AI chat session:\n${shareUrl}`;
 
     // Populate modal
     const backdrop = document.getElementById('shareBackdrop');
-    document.getElementById('shareChatName').textContent  = data.title || 'Untitled Chat';
-    document.getElementById('shareLinkInput').value       = shareUrl;
-    document.getElementById('shareStatDocs').textContent  = `📄 ${data.documents.length} doc${data.documents.length !== 1 ? 's' : ''}`;
-    document.getElementById('shareStatMsgs').textContent  = `💬 ${data.message_count} message${data.message_count !== 1 ? 's' : ''}`;
+    document.getElementById('shareChatName').textContent = data.title || 'Untitled Chat';
+    document.getElementById('shareLinkInput').value = shareUrl;
+    document.getElementById('shareStatDocs').textContent = `📄 ${data.documents.length} doc${data.documents.length !== 1 ? 's' : ''}`;
+    document.getElementById('shareStatMsgs').textContent = `💬 ${data.message_count} message${data.message_count !== 1 ? 's' : ''}`;
     document.getElementById('shareCopyLabel').textContent = 'Copy';
 
     // Show modal
@@ -365,7 +373,7 @@ async function shareChat(chatId, e) {
       backdrop.removeEventListener('click', onBd);
       document.removeEventListener('keydown', onEsc);
     }
-    const onBd  = (ev) => { if (ev.target === backdrop) closeShare(); };
+    const onBd = (ev) => { if (ev.target === backdrop) closeShare(); };
     const onEsc = (ev) => { if (ev.key === 'Escape') closeShare(); };
     document.getElementById('shareClose').onclick = closeShare;
     backdrop.addEventListener('click', onBd);
@@ -379,17 +387,17 @@ async function shareChat(chatId, e) {
     };
 
     // Share buttons
-    const encUrl  = encodeURIComponent(shareUrl);
+    const encUrl = encodeURIComponent(shareUrl);
     const encText = encodeURIComponent(shareText);
-    document.getElementById('shareWhatsapp').onclick  = () => { window.open(`https://wa.me/?text=${encText}`, '_blank'); closeShare(); };
-    document.getElementById('shareTelegram').onclick  = () => { window.open(`https://t.me/share/url?url=${encUrl}&text=${encodeURIComponent('Check out this RAG Chat session!')}`, '_blank'); closeShare(); };
-    document.getElementById('shareTwitter').onclick   = () => { window.open(`https://twitter.com/intent/tweet?url=${encUrl}&text=${encodeURIComponent('Chatting with documents using local AI!')}`, '_blank'); closeShare(); };
-    document.getElementById('shareLinkedin').onclick  = () => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}`, '_blank'); closeShare(); };
-    document.getElementById('shareEmail').onclick     = () => { window.open(`mailto:?subject=${encodeURIComponent('Check out this RAG Chat')}&body=${encText}`, '_blank'); closeShare(); };
-    document.getElementById('shareNative').onclick    = async () => {
+    document.getElementById('shareWhatsapp').onclick = () => { window.open(`https://wa.me/?text=${encText}`, '_blank'); closeShare(); };
+    document.getElementById('shareTelegram').onclick = () => { window.open(`https://t.me/share/url?url=${encUrl}&text=${encodeURIComponent('Check out this RAG Chat session!')}`, '_blank'); closeShare(); };
+    document.getElementById('shareTwitter').onclick = () => { window.open(`https://twitter.com/intent/tweet?url=${encUrl}&text=${encodeURIComponent('Chatting with documents using local AI!')}`, '_blank'); closeShare(); };
+    document.getElementById('shareLinkedin').onclick = () => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}`, '_blank'); closeShare(); };
+    document.getElementById('shareEmail').onclick = () => { window.open(`mailto:?subject=${encodeURIComponent('Check out this RAG Chat')}&body=${encText}`, '_blank'); closeShare(); };
+    document.getElementById('shareNative').onclick = async () => {
       if (navigator.share) {
         try { await navigator.share({ title: data.title || 'RAG Chat', text: 'Check out this AI chat session!', url: shareUrl }); closeShare(); }
-        catch (_) {}
+        catch (_) { }
       } else {
         await navigator.clipboard.writeText(shareUrl);
         showToast('Link copied — share it anywhere!', 'success');
@@ -404,8 +412,8 @@ async function shareChat(chatId, e) {
 
 // expose to inline onclick handlers
 window.switchToChat = switchToChat;
-window.deleteChat   = deleteChat;
-window.shareChat    = shareChat;
+window.deleteChat = deleteChat;
+window.shareChat = shareChat;
 
 // ──────────────────────────────────────────────────────────
 // Load chat list (with delete + share buttons)
@@ -413,7 +421,7 @@ window.shareChat    = shareChat;
 async function loadChatList() {
   try {
     const chats = await api('GET', '/api/chats');
-    const list  = el('chatList');
+    const list = el('chatList');
 
     if (!chats.length) {
       list.innerHTML = `<div class="empty-chats">
@@ -493,7 +501,7 @@ async function loadDocs(chatId) {
           <span class="doc-chip-meta">${d.num_pages} pg · ${d.num_chunks} chunks</span>
         </div>
         <button class="doc-chip-remove"
-                onclick="removeDocument('${chatId}', ${d.id}, '${escHtml(d.filename).replace(/'/g, "\\'") }', event)"
+                onclick="removeDocument('${chatId}', ${d.id}, '${escHtml(d.filename).replace(/'/g, "\\'")}', event)"
                 title="Remove document">
           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -645,6 +653,8 @@ async function sendQuestion() {
   const question = el('questionInput').value.trim();
   if (!question) return;
 
+  console.log('[RAG] sendQuestion START', { chatId: state.currentChatId });
+
   // Remove hint
   const hint = document.getElementById('chatHint');
   if (hint) hint.remove();
@@ -656,7 +666,20 @@ async function sendQuestion() {
   state.isStreaming = true;
   el('btnSend').style.display = 'none';
   el('btnStop').style.display = 'flex';
-  
+
+  // Safety timeout: if streaming hangs for 3 min, auto-reset UI
+  const _streamingTimeout = setTimeout(() => {
+    if (state.isStreaming) {
+      if (_chatAbort) _chatAbort.abort();
+      state.isStreaming = false;
+      el('btnStop').style.display = 'none';
+      el('btnSend').style.display = 'flex';
+      updateSendBtn();
+      document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
+      showToast('Response timed out. Please try again.', 'error');
+    }
+  }, 3 * 60 * 1000);
+
   _chatAbort = new AbortController();
 
   renderMessage('user', question);
@@ -664,14 +687,14 @@ async function sendQuestion() {
 
   try {
     const res = await fetch('/api/query', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ 
-        chat_id: state.currentChatId, 
+      body: JSON.stringify({
+        chat_id: state.currentChatId,
         question,
-        use_web_search: webSearchEnabled 
+        use_web_search: webSearchEnabled
       }),
-      signal:  _chatAbort.signal,
+      signal: _chatAbort.signal,
     });
 
     if (!res.ok) {
@@ -679,32 +702,60 @@ async function sendQuestion() {
       throw new Error(err.error || 'Query failed');
     }
 
-    const reader  = res.body.getReader();
+    const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = '', citations = [], aiMsgEl = null, bubble = null, full = '';
     let isFinished = false;
 
     while (!isFinished) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        // Flush any remaining data in the buffer before exiting
+        if (buf.trim()) {
+          const finalPart = buf.trim();
+          if (finalPart.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(finalPart.slice(6));
+              if (parsed.type === 'done') {
+                if (bubble) {
+                  bubble.classList.remove('typing-cursor');
+                  bubble.innerHTML = formatMarkdown(full);
+                  if (citations.length && aiMsgEl) aiMsgEl.appendChild(buildCitationsBlock(citations));
+                  if (window.MathJax) MathJax.typesetPromise([bubble]).catch(() => { });
+                  scrollToBottom();
+                }
+              } else if (parsed.type === 'token' && bubble) {
+                full += parsed.data;
+                bubble.innerHTML = formatMarkdown(full);
+                bubble.classList.remove('typing-cursor');
+                scrollToBottom();
+              }
+            } catch (_) { }
+          }
+        }
+        break;
+      }
       buf += decoder.decode(value, { stream: true });
       const parts = buf.split('\n\n');
       buf = parts.pop();
 
       for (const part of parts) {
+        if (!part.trim()) continue;  // skip empty parts
+        if (part.startsWith(':')) continue;  // skip SSE comment/keepalive lines
         if (!part.startsWith('data: ')) continue;
         let parsed;
         try { parsed = JSON.parse(part.slice(6)); } catch { continue; }
         console.log("SSE event parsed:", parsed);
 
         if (parsed.type === 'error') {
+          console.log('[RAG] SSE error received — setting isFinished=true');
           removeThinking();
+          if (aiMsgEl && !full) aiMsgEl.remove();
+          document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
           showToast(parsed.message, 'error', 5000);
-          state.isStreaming = false;
-          el('btnStop').style.display = 'none';
-          el('btnSend').style.display = 'flex';
-          updateSendBtn();
-          return;
+          // Use isFinished+break instead of return — guarantees finally block runs
+          isFinished = true;
+          break;
         }
 
         if (parsed.type === 'citations') {
@@ -712,7 +763,7 @@ async function sendQuestion() {
           removeThinking();
           const r = renderMessage('assistant', '', [], true);
           aiMsgEl = r.el;
-          bubble  = r.getBubble();
+          bubble = r.getBubble();
           bubble.classList.add('typing-cursor');
         }
 
@@ -723,39 +774,48 @@ async function sendQuestion() {
           scrollToBottom();
         }
 
-        if (parsed.type === 'done' && bubble) {
-          bubble.classList.remove('typing-cursor');
-          bubble.innerHTML = formatMarkdown(full);
-          if (citations.length && aiMsgEl) aiMsgEl.appendChild(buildCitationsBlock(citations));
-          if (window.MathJax) {
-            MathJax.typesetPromise([bubble]).catch(err => console.error('MathJax error', err));
+        if (parsed.type === 'done') {
+          console.log('[RAG] SSE done received');
+          if (bubble) {
+            bubble.classList.remove('typing-cursor');
+            bubble.innerHTML = formatMarkdown(full);
+            if (citations.length && aiMsgEl) aiMsgEl.appendChild(buildCitationsBlock(citations));
+            if (window.MathJax) {
+              MathJax.typesetPromise([bubble]).catch(err => console.error('MathJax error', err));
+            }
+            scrollToBottom();
+          } else {
+            // Edge case: done arrived without citations/bubble — clean up any stray cursors
+            document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
           }
-          scrollToBottom();
           isFinished = true;
           break;
         }
       }
     }
 
-    await loadChatList();
-
   } catch (e) {
     if (e.name === 'AbortError') {
-       removeThinking();
-       // If it was already generating, just remove the cursor
-       const activeCursor = document.querySelector('.typing-cursor');
-       if (activeCursor) activeCursor.classList.remove('typing-cursor');
-       showToast('Generation stopped.', 'info');
+      removeThinking();
+      const activeCursor = document.querySelector('.typing-cursor');
+      if (activeCursor) activeCursor.classList.remove('typing-cursor');
+      showToast('Generation stopped.', 'info');
     } else {
-       removeThinking();
-       showToast(e.message, 'error', 5000);
+      removeThinking();
+      showToast(e.message, 'error', 5000);
     }
   } finally {
+    console.log('[RAG] finally block running — resetting buttons');
+    clearTimeout(_streamingTimeout);
     state.isStreaming = false;
     _chatAbort = null;
+    document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
     el('btnStop').style.display = 'none';
     el('btnSend').style.display = 'flex';
     updateSendBtn();
+    console.log('[RAG] btnStop display:', el('btnStop').style.display, '| btnSend display:', el('btnSend').style.display);
+    // Load chat list AFTER buttons are reset — don't block UI on this
+    loadChatList().catch(() => { });
   }
 }
 
@@ -786,11 +846,11 @@ async function uploadFile(file) {
     ? (file.size / 1048576).toFixed(1) + ' MB'
     : Math.round(file.size / 1024) + ' KB';
 
-  const progEl   = el('uploadProgress');
+  const progEl = el('uploadProgress');
   const statusEl = el('progressStatus');
-  const sizeEl   = el('progressSize');
-  const iconEl   = el('progressFileIcon');
-  const stopBtn  = el('uploadStopBtn');
+  const sizeEl = el('progressSize');
+  const iconEl = el('progressFileIcon');
+  const stopBtn = el('uploadStopBtn');
 
   // Create abort controller for this upload
   _uploadAbort = new AbortController();
@@ -798,10 +858,10 @@ async function uploadFile(file) {
   progEl.style.display = 'flex';
   progEl.className = 'upload-progress';
   el('progressLabel').textContent = truncate(file.name, 30);
-  if (iconEl)   iconEl.textContent   = fileIcon(ext.replace('.', ''));
+  if (iconEl) iconEl.textContent = fileIcon(ext.replace('.', ''));
   if (statusEl) statusEl.textContent = 'Uploading…';
-  if (sizeEl)   sizeEl.textContent   = sizeLabel;
-  if (stopBtn)  stopBtn.style.display = 'flex';
+  if (sizeEl) sizeEl.textContent = sizeLabel;
+  if (stopBtn) stopBtn.style.display = 'flex';
   updateRing(0);
 
   let prog = 0;
@@ -818,7 +878,7 @@ async function uploadFile(file) {
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
-      body:   fd,
+      body: fd,
       signal: _uploadAbort.signal,
     });
     clearInterval(iv);
@@ -837,7 +897,7 @@ async function uploadFile(file) {
     while (!isFinished) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       buf += decoder.decode(value, { stream: true });
       const parts = buf.split('\n\n');
       buf = parts.pop();
@@ -864,7 +924,7 @@ async function uploadFile(file) {
             }
           } catch (e) {
             if (e.message && part.includes('"type": "error"')) {
-               throw e;
+              throw e;
             }
             console.error("Error parsing SSE JSON:", e, part);
           }
@@ -877,8 +937,8 @@ async function uploadFile(file) {
     updateRing(100);
     progEl.classList.add('success');
     if (statusEl) statusEl.textContent = `✓ ${finalData.document.num_chunks} chunks · ${finalData.document.num_pages} pages`;
-    if (sizeEl)   sizeEl.textContent   = sizeLabel;
-    if (stopBtn)  stopBtn.style.display = 'none';
+    if (sizeEl) sizeEl.textContent = sizeLabel;
+    if (stopBtn) stopBtn.style.display = 'none';
 
     await loadDocs(state.currentChatId);
     await loadChatList();
@@ -901,7 +961,7 @@ async function uploadFile(file) {
       updateRing(prog);
       progEl.classList.add('error');
       if (statusEl) statusEl.textContent = `✗ ${e.message}`;
-      if (stopBtn)  stopBtn.style.display = 'none';
+      if (stopBtn) stopBtn.style.display = 'none';
       showToast(e.message, 'error', 5000);
       setTimeout(() => { progEl.style.display = 'none'; progEl.classList.remove('error'); }, 5000);
     }
@@ -917,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Upload modal logic
   const uploadBd = el('uploadBackdrop');
   const uploadIn = el('uploadModalInner');
-  
+
   function openUploadModal() {
     requestAnimationFrame(() => uploadBd.classList.add('visible'));
   }
@@ -927,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   el('btnAttach').addEventListener('click', openUploadModal);
-  
+
   const btnWebSearch = el('btnWebSearch');
   const webSearchLabel = el('webSearchLabel');
   if (btnWebSearch) {
@@ -1023,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateSendBtn() {
-  const has  = el('questionInput').value.trim().length > 0;
+  const has = el('questionInput').value.trim().length > 0;
   const chat = !!state.currentChatId;
   el('btnSend').disabled = !has || !chat || state.isStreaming;
 }
@@ -1050,42 +1110,42 @@ function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
 function formatDate(d) {
   const now = new Date(), diff = now - d, m = Math.floor(diff / 60000);
   if (isNaN(m)) return 'Invalid Date';
-  if (m < 1)  return 'just now';
+  if (m < 1) return 'just now';
   if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
   return d.toLocaleDateString();
 }
 function fileIcon(t) {
-  return { pdf:'📄', html:'🌐', htm:'🌐', txt:'📝', docx:'📋', md:'📓' }[t] || '📁';
+  return { pdf: '📄', html: '🌐', htm: '🌐', txt: '📝', docx: '📋', md: '📓' }[t] || '📁';
 }
 function formatMarkdown(text) {
   let h = escHtml(text);
-  
+
   // Extract block and inline math to protect from markdown formatting
   const mathBlocks = [];
   let counter = 0;
-  
+
   h = h.replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
     mathBlocks.push(match);
     return `__MATH_BLOCK_${counter++}__`;
   });
-  
+
   h = h.replace(/\$([^\s\$][^$]*?[^\s\$]|[^\s\$])\$/g, (match) => {
     mathBlocks.push(match);
     return `__MATH_BLOCK_${counter++}__`;
   });
 
   h = h.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-  h = h.replace(/^## (.+)$/gm,  '<h3>$1</h3>');
-  h = h.replace(/^# (.+)$/gm,   '<h2>$1</h2>');
+  h = h.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^# (.+)$/gm, '<h2>$1</h2>');
   h = h.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  h = h.replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>');
-  h = h.replace(/\*(.+?)\*/g,          '<em>$1</em>');
-  h = h.replace(/`([^`]+)`/g,          '<code>$1</code>');
-  h = h.replace(/^[\-\*] (.+)$/gm,     '<li>$1</li>');
-  h = h.replace(/(<li>[\s\S]*?<\/li>)/g,'<ul>$1</ul>');
-  h = h.replace(/^\d+\. (.+)$/gm,      '<li>$1</li>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
   h = h.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br/>');
   h = '<p>' + h + '</p>';
   h = h.replace(/<p><\/p>/g, '');
@@ -1103,10 +1163,10 @@ function formatMarkdown(text) {
 async function init() {
   await loadChatList();
   // Auto-open chat if ?chat=<id> is in URL
-  const params  = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(window.location.search);
   const chatParam = params.get('chat');
   if (chatParam) {
-    try { await switchToChat(chatParam); } catch {}
+    try { await switchToChat(chatParam); } catch { }
   }
 }
 

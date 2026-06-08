@@ -267,11 +267,13 @@ def query():
             if not citations and not use_web_search:
                 yield _sse({"type": "error",
                             "message": "No relevant context found in documents."})
+                yield ": keepalive\n\n"
                 return
                 
             if use_web_search and not context:
                 yield _sse({"type": "error",
                             "message": "No relevant context found in documents and web search returned no results."})
+                yield ": keepalive\n\n"
                 return
 
             # 2. Send citations to client immediately
@@ -289,11 +291,13 @@ def query():
             # 5. Save assistant message with citations
             db.add_message(chat_id, "assistant", full_answer, citations)
 
-            # 6. Signal done
+            # 6. Signal done — yield a trailing newline to flush the TCP buffer
             yield _sse({"type": "done", "full_answer": full_answer})
+            yield ": keepalive\n\n"  # Forces TCP buffer flush so client receives 'done'
 
         except Exception as e:
             yield _sse({"type": "error", "message": str(e)})
+            yield ": keepalive\n\n"
 
     return Response(
         stream_with_context(generate()),
