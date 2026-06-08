@@ -562,7 +562,7 @@ function renderMessage(role, content, citations = [], streaming = false) {
       ${avatarHtml}
       <div class="bubble${streaming ? ' typing-cursor' : ''}" id="${bubbleId}">${html}</div>
     </div>
-    <div class="message-meta">${role === 'user' ? 'You' : 'AI'} · just now</div>`;
+    <div class="message-meta">${role === 'user' ? 'You' : 'AI'} · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}, ${new Date().toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</div>`;
 
   if (role === 'assistant' && citations.length > 0) {
     msgEl.appendChild(buildCitationsBlock(citations));
@@ -652,8 +652,6 @@ async function sendQuestion() {
   if (state.isStreaming || !state.currentChatId) return;
   const question = el('questionInput').value.trim();
   if (!question) return;
-
-  console.log('[RAG] sendQuestion START', { chatId: state.currentChatId });
 
   // Remove hint
   const hint = document.getElementById('chatHint');
@@ -745,10 +743,8 @@ async function sendQuestion() {
         if (!part.startsWith('data: ')) continue;
         let parsed;
         try { parsed = JSON.parse(part.slice(6)); } catch { continue; }
-        console.log("SSE event parsed:", parsed);
 
         if (parsed.type === 'error') {
-          console.log('[RAG] SSE error received — setting isFinished=true');
           removeThinking();
           if (aiMsgEl && !full) aiMsgEl.remove();
           document.querySelectorAll('.typing-cursor').forEach(e => e.classList.remove('typing-cursor'));
@@ -775,7 +771,6 @@ async function sendQuestion() {
         }
 
         if (parsed.type === 'done') {
-          console.log('[RAG] SSE done received');
           if (bubble) {
             bubble.classList.remove('typing-cursor');
             bubble.innerHTML = formatMarkdown(full);
@@ -805,7 +800,6 @@ async function sendQuestion() {
       showToast(e.message, 'error', 5000);
     }
   } finally {
-    console.log('[RAG] finally block running — resetting buttons');
     clearTimeout(_streamingTimeout);
     state.isStreaming = false;
     _chatAbort = null;
@@ -813,8 +807,6 @@ async function sendQuestion() {
     el('btnStop').style.display = 'none';
     el('btnSend').style.display = 'flex';
     updateSendBtn();
-    console.log('[RAG] btnStop display:', el('btnStop').style.display, '| btnSend display:', el('btnSend').style.display);
-    // Load chat list AFTER buttons are reset — don't block UI on this
     loadChatList().catch(() => { });
   }
 }
