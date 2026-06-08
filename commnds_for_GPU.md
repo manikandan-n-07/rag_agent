@@ -1,0 +1,9 @@
+$env:CUDA_VISIBLE_DEVICES="1"
+$env:OLLAMA_HOST="0.0.0.0:11435"
+$env:OLLAMA_ORIGINS="*"
+ollama serve
+
+$env:CUDA_VISIBLE_DEVICES="0"
+$env:OLLAMA_HOST="0.0.0.0:11434"
+$env:OLLAMA_ORIGINS="*"
+ollama serve

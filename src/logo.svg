@@ -1,0 +1,59 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer nodes -->
+  <circle cx="256" cy="80" r="18" fill="url(#grad)"/>
+  <circle cx="408" cy="168" r="18" fill="url(#grad)"/>
+  <circle cx="408" cy="344" r="18" fill="url(#grad)"/>
+  <circle cx="256" cy="432" r="18" fill="url(#grad)"/>
+  <circle cx="104" cy="344" r="18" fill="url(#grad)"/>
+  <circle cx="104" cy="168" r="18" fill="url(#grad)"/>
+
+  <!-- Connection lines -->
+  <g stroke="url(#grad)" stroke-width="10" stroke-linecap="round" opacity="0.7">
+    <line x1="256" y1="80" x2="256" y2="150"/>
+    <line x1="408" y1="168" x2="348" y2="202"/>
+    <line x1="408" y1="344" x2="348" y2="310"/>
+    <line x1="256" y1="432" x2="256" y2="362"/>
+    <line x1="104" y1="344" x2="164" y2="310"/>
+    <line x1="104" y1="168" x2="164" y2="202"/>
+  </g>
+
+  <!-- Hexagon Core -->
+  <polygon
+    points="256,150 348,202 348,310 256,362 164,310 164,202"
+    fill="white"
+    stroke="url(#grad)"
+    stroke-width="12"
+  />
+
+  <!-- Stylized R -->
+  <path
+    d="M220 220
+       H275
+       C305 220 320 238 320 262
+       C320 285 305 300 278 303
+       L322 345
+       H285
+       L248 308
+       H248
+       V345
+       H220
+       Z
+       M248 245
+       V283
+       H272
+       C286 283 293 276 293 264
+       C293 251 286 245 272 245
+       Z"
+    fill="url(#grad)"
+  />
+
+  <!-- Small AI dot -->
+  <circle cx="320" cy="190" r="10" fill="#06B6D4"/>
+</svg>

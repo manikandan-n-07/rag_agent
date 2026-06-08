@@ -1,0 +1,11 @@
+pymupdf
+langchain
+langchain-text-splitters
+faiss-cpu
+numpy
+tqdm
+flask
+werkzeug
+beautifulsoup4
+python-docx
+ddgs

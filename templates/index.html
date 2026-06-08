@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Chat — AI Document Intelligence</title>
+  <meta name="description"
+    content="Upload any PDF, HTML, or text document and chat with it using local AI. Get precise answers with full source citations." />
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+<body>
+
+  <!-- SVG gradient defs (hidden) -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+    <defs>
+      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#5b4ff5" />
+        <stop offset="55%" stop-color="#8b6cf7" />
+        <stop offset="100%" stop-color="#e879f9" />
+      </linearGradient>
+      <linearGradient id="ringSuccessGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#10b981" />
+        <stop offset="100%" stop-color="#34d399" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- ═══════════════════════════════════════════
+     SIDEBAR — Chat Sessions
+     ═══════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="/static/logo.svg" alt="RAG Chat Logo" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(79, 70, 229, 0.3));" />
+        </div>
+        <span class="brand-name">RAG<span class="accent">Chat</span></span>
+      </div>
+      <button class="btn-new-chat" id="btnNewChat" title="New Chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        New Chat
+      </button>
+      <button class="btn-icon sidebar-close-btn" id="sidebarCloseBtn" title="Close sidebar" style="display: none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="sidebar-section-label">Recent Sessions</div>
+    <div class="chat-list" id="chatList">
+      <div class="empty-chats">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          opacity="0.4">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <p>No chats yet</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════
+     MAIN — Chat Area
+     ═══════════════════════════════════════════ -->
+  <main class="main" id="main">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <button class="btn-icon sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      <div class="topbar-center">
+        <span class="chat-title-display" id="chatTitleDisplay">Select or Create a Chat</span>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+          <span class="theme-toggle-icons"><span>☀️</span><span>🌙</span></span>
+        </button>
+        <div class="chat-id-badge" id="chatIdBadge" style="display:none">
+          <span class="chat-id-label">Chat ID</span>
+          <span class="chat-id-value" id="chatIdValue"></span>
+          <button class="btn-copy" id="btnCopyId" title="Copy Chat ID">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Welcome Screen -->
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="welcome-content">
+        <div class="welcome-glow"></div>
+        <div class="welcome-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <h1 class="welcome-title">Document Intelligence</h1>
+        <p class="welcome-subtitle">Upload any document and have a precise conversation with it.<br />Get cited answers
+          from your own files — powered by local AI.</p>
+        <div class="welcome-features">
+          <div class="feature-pill">📄 PDF</div>
+          <div class="feature-pill">🌐 HTML</div>
+          <div class="feature-pill">📝 TXT</div>
+          <div class="feature-pill">📋 DOCX</div>
+        </div>
+        <button class="btn-primary btn-start" id="btnStart">
+          Start New Chat
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Container -->
+    <div class="chat-container" id="chatContainer" style="display:none">
+
+      <!-- Documents Panel -->
+      <div class="docs-panel" id="docsPanel">
+        <div class="docs-panel-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Documents</span>
+          <span class="docs-count" id="docsCount">0</span>
+        </div>
+        <div class="docs-list" id="docsList">
+          <div class="docs-empty" id="docsEmpty">
+            <p>No files yet.<br />Upload a document below.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="messages-area" id="messagesArea">
+        <div class="messages-list" id="messagesList">
+          <!-- Welcome hint for new chat -->
+          <div class="chat-hint" id="chatHint">
+            <div class="hint-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <p>Upload a document using the button below, then ask any question about it.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-area" id="inputArea">
+
+        <!-- Upload Progress (3D Ring) -->
+        <div class="upload-progress" id="uploadProgress" style="display:none">
+          <!-- Circular progress ring -->
+          <div class="progress-ring-wrap">
+            <svg class="progress-ring-svg" viewBox="0 0 54 54">
+              <circle class="ring-track" cx="27" cy="27" r="22" />
+              <circle class="ring-fill" id="ringFill" cx="27" cy="27" r="22" />
+            </svg>
+            <div class="progress-pct" id="progressPct">0%</div>
+          </div>
+          <!-- Text info -->
+          <div class="progress-info">
+            <div class="progress-filename">
+              <span class="progress-filename-icon" id="progressFileIcon">📄</span>
+              <span id="progressLabel">Uploading...</span>
+            </div>
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <div class="progress-label">
+              <span class="p-status" id="progressStatus">Indexing document…</span>
+              <span class="p-size" id="progressSize"></span>
+            </div>
+          </div>
+          <!-- Stop button -->
+          <button class="upload-stop-btn" id="uploadStopBtn" title="Cancel upload">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Chat Input Row -->
+        <div class="input-row">
+          <button class="btn-icon btn-attach" id="btnAttach" title="Attach file">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+          <button class="btn-icon btn-websearch" id="btnWebSearch" title="Toggle Web Search"
+            style="color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 20px; transition: all 0.2s ease; width: auto; min-width: 34px; height: 34px; padding: 0 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <span id="webSearchLabel" style="font-size: 13px; font-weight: 600; display: none; white-space: nowrap;">Web Search</span>
+          </button>
+          <div class="textarea-wrapper">
+            <textarea id="questionInput" placeholder="Ask anything about your documents..." rows="1"
+              maxlength="4000"></textarea>
+          </div>
+          <button class="btn-send" id="btnSend" disabled title="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+          <button class="btn-stop" id="btnStop" style="display:none" title="Stop generating">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+     TOAST Notification
+     ═══════════════════════════════════════════ -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ═══════════════════════════════════════════
+     UPLOAD MODAL
+     ═══════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="uploadBackdrop" aria-modal="true" role="dialog">
+    <div class="modal-card" id="uploadCard" style="text-align: center; padding: 40px 24px; width: 400px;">
+      <button class="share-close" id="uploadClose" title="Close" style="position: absolute; top: 8px; right: 16px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <div id="uploadModalInner" class="upload-zone" style="margin: 0; padding: 50px 20px; border-width: 2px;">
+        <!-- Ambient orb particles -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+
+        <!-- Content -->
+        <div class="upload-content" style="position: relative; z-index: 2;">
+          <div class="upload-zone-icon"
+            style="margin: 0 auto 20px; width: 64px; height: 64px; background: var(--accent-soft); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px var(--up-glow);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 16 12 12 8 16" />
+              <line x1="12" y1="12" x2="12" y2="21" />
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+            </svg>
+          </div>
+          <h3 style="margin-bottom: 8px; font-size: 19px; color: var(--text-primary); font-weight: 700;">Upload Document
+          </h3>
+          <div style="margin-bottom: 16px; font-size: 14.5px; color: var(--text-secondary);">
+            Drag and drop files here or <span style="color: var(--accent); font-weight: 600;">browse</span>
+          </div>
+          <div
+            style="font-size: 11px; opacity: 0.8; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600;">
+            PDF · HTML · TXT · DOCX · MD &nbsp;—&nbsp; Max 100MB
+          </div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".pdf,.html,.htm,.txt,.docx,.md" multiple style="display:none" />
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+     CUSTOM CONFIRM MODAL
+     ═══════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="confirmBackdrop" aria-modal="true" role="dialog">
+    <div class="modal-card" id="confirmCard">
+      <div class="modal-icon" id="confirmIcon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M10 11v6" />
+          <path d="M14 11v6" />
+          <path d="M9 6V4h6v2" />
+        </svg>
+      </div>
+      <h3 class="modal-title" id="confirmTitle">Delete Chat?</h3>
+      <p class="modal-body" id="confirmBody">This will permanently delete this chat, all messages, and remove all
+        uploaded documents from the index. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel" id="confirmCancel">Cancel</button>
+        <button class="modal-btn modal-confirm" id="confirmOk">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+     CUSTOM PROMPT MODAL
+     ═══════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="promptBackdrop" aria-modal="true" role="dialog">
+    <div class="modal-card" id="promptCard">
+      <div class="modal-icon" id="promptIcon" style="color: var(--accent); background: var(--accent-soft);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+        </svg>
+      </div>
+      <h3 class="modal-title" id="promptTitle">Rename Chat</h3>
+      <p class="modal-body" id="promptBody">Enter new chat title:</p>
+      <input type="text" id="promptInput" style="width: 100%; margin-bottom: 24px; padding: 12px 16px; font-size: 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel" id="promptCancel">Cancel</button>
+        <button class="modal-btn modal-confirm" id="promptOk" style="background: var(--accent); border-color: var(--accent);">Save</button>
+      </div>
+    </div>
+  </div>
+  <!-- ═══════════════════════════════════════════
+     SHARE MODAL
+     ═══════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="shareBackdrop" aria-modal="true" role="dialog">
+    <div class="share-card" id="shareCard">
+      <div class="share-header">
+        <div class="share-header-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        </div>
+        <div class="share-header-text">
+          <h3 class="share-title">Share Chat</h3>
+          <p class="share-subtitle" id="shareChatName">—</p>
+        </div>
+        <button class="share-close" id="shareClose" title="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="share-link-row">
+        <input class="share-link-input" id="shareLinkInput" readonly type="text" />
+        <button class="share-copy-btn" id="shareCopyBtn" title="Copy link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          <span id="shareCopyLabel">Copy</span>
+        </button>
+      </div>
+
+      <p class="share-apps-label">Share via</p>
+      <div class="share-apps-grid">
+
+        <button class="share-app-btn" id="shareWhatsapp" title="Share on WhatsApp">
+          <span class="share-app-icon" style="background:#25D366">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path
+                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+            </svg>
+          </span>
+          <span class="share-app-name">WhatsApp</span>
+        </button>
+
+        <button class="share-app-btn" id="shareTelegram" title="Share on Telegram">
+          <span class="share-app-icon" style="background:#229ED9">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path
+                d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+            </svg>
+          </span>
+          <span class="share-app-name">Telegram</span>
+        </button>
+
+        <button class="share-app-btn" id="shareEmail" title="Share via Email">
+          <span class="share-app-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+          </span>
+          <span class="share-app-name">Email</span>
+        </button>
+
+        <button class="share-app-btn" id="shareTwitter" title="Share on X / Twitter">
+          <span class="share-app-icon" style="background:#000">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+              <path
+                d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+          </span>
+          <span class="share-app-name">X / Twitter</span>
+        </button>
+
+        <button class="share-app-btn" id="shareLinkedin" title="Share on LinkedIn">
+          <span class="share-app-icon" style="background:#0A66C2">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path
+                d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+            </svg>
+          </span>
+          <span class="share-app-name">LinkedIn</span>
+        </button>
+
+        <button class="share-app-btn" id="shareNative" title="More apps">
+          <span class="share-app-icon" style="background:linear-gradient(135deg,var(--accent),var(--accent-2))">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+          </span>
+          <span class="share-app-name">More…</span>
+        </button>
+
+      </div>
+
+      <div class="share-stats">
+        <span id="shareStatDocs">📄 0 docs</span>
+        <span class="share-stats-dot">·</span>
+        <span id="shareStatMsgs">💬 0 messages</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>

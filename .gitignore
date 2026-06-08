@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# HuggingFace Cache
+.cache/
+huggingface/
+
+# Large Models
+models/
+*.gguf
+
+# Vector Store
+vector_store/faiss.index
+vector_store/chunks.pkl
+
+
+# Logs
+*.log
+
+# Build Files
+build/
+dist/
+*.egg-info/
+
+# Temporary
+tmp/
+temp/
+upload_tmp/
+
+# Application Data
+rag_chat.db
+rag_chat.db-shm
+rag_chat.db-wal
+documents/
+vector_store/
