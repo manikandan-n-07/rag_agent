@@ -167,48 +167,59 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(backdrop);
   }
 
+  function isMobile() {
+    return window.innerWidth <= 768;
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    sidebar.classList.remove('collapsed');
+    backdrop.classList.add('visible');
+    // Prevent scroll behind overlay on mobile
+    if (isMobile()) document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
   function toggleSidebar() {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      // On mobile, toggle 'open' class for overlay
-      const isOpen = sidebar.classList.toggle('open');
-      if (isOpen) {
-        backdrop.classList.add('visible');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling under overlay
+    if (isMobile()) {
+      // On mobile: overlay slide-in/out
+      if (sidebar.classList.contains('open')) {
+        closeSidebar();
       } else {
-        backdrop.classList.remove('visible');
-        document.body.style.overflow = '';
+        openSidebar();
       }
     } else {
-      // On desktop, toggle 'collapsed' class
+      // On desktop: collapse/expand (push layout)
       sidebar.classList.toggle('collapsed');
     }
   }
 
-  function closeSidebarMobile() {
-    if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
-      sidebar.classList.remove('open');
-      backdrop.classList.remove('visible');
-      document.body.style.overflow = '';
-    }
-  }
-
-  const closeBtn = document.getElementById('sidebarCloseBtn');
-  if (closeBtn) closeBtn.addEventListener('click', closeSidebarMobile);
+  // Close button inside sidebar (visible on mobile only via CSS)
+  const closeBtn = el('sidebarCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
 
   toggleBtn.addEventListener('click', toggleSidebar);
-  backdrop.addEventListener('click', closeSidebarMobile);
+  backdrop.addEventListener('click', closeSidebar);
 
-  // Expose for external calls (like when a chat is selected)
-  window.closeSidebarMobile = closeSidebarMobile;
+  // Expose closeSidebarMobile globally so chat selection etc. can close it
+  window.closeSidebarMobile = closeSidebar;
 
-  // Handle window resize to reset states if crossing breakpoint
+  // On resize: if crossing from mobile→desktop, clean up mobile state
+  let _resizeTimer;
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 768) {
-      sidebar.classList.remove('open');
-      backdrop.classList.remove('visible');
-      document.body.style.overflow = '';
-    }
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      if (!isMobile()) {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('visible');
+        document.body.style.overflow = '';
+      }
+    }, 100);
   });
 });
 
@@ -416,7 +427,7 @@ window.deleteChat = deleteChat;
 window.shareChat = shareChat;
 
 // ──────────────────────────────────────────────────────────
-// Load chat list (with delete + share buttons)
+// Load chat list  — always-visible three-dots (⋮) menu
 // ──────────────────────────────────────────────────────────
 async function loadChatList() {
   try {
@@ -436,8 +447,10 @@ async function loadChatList() {
     list.innerHTML = chats.map(chat => {
       const label = formatDate(new Date(chat.updated_at));
       const active = chat.chat_id === state.currentChatId ? ' active' : '';
-      return `<div class="chat-item${active}" data-chat-id="${chat.chat_id}"
-                   onclick="switchToChat('${chat.chat_id}')">
+      const safeId = chat.chat_id;
+      const safeTitle = escHtml(chat.title).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `<div class="chat-item${active}" data-chat-id="${safeId}"
+                   onclick="switchToChat('${safeId}')">
         <div class="chat-item-icon">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -447,33 +460,44 @@ async function loadChatList() {
           <div class="chat-item-title">${escHtml(chat.title)}</div>
           <div class="chat-item-date">${label}</div>
         </div>
-        <div class="chat-item-actions">
-          <button class="chat-action-btn edit-btn"
-                  onclick="renameChat('${chat.chat_id}', '${escHtml(chat.title)}', event)"
-                  title="Rename chat">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+        <div class="chat-item-menu" onclick="event.stopPropagation()">
+          <button class="chat-dots-btn" title="More options"
+                  onclick="toggleChatMenu('${safeId}', event)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="1.8"/>
+              <circle cx="12" cy="12" r="1.8"/>
+              <circle cx="12" cy="19" r="1.8"/>
             </svg>
           </button>
-          <button class="chat-action-btn share-btn"
-                  onclick="shareChat('${chat.chat_id}', event)"
-                  title="Share chat">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-          </button>
-          <button class="chat-action-btn delete-btn"
-                  onclick="deleteChat('${chat.chat_id}', event)"
-                  title="Delete chat">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
-            </svg>
-          </button>
+          <div class="chat-dropdown" id="menu-${safeId}">
+            <button class="chat-dd-item rename-dd"
+                    onclick="renameChat('${safeId}','${safeTitle}',event);closeChatMenus()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+              </svg>
+              Rename
+            </button>
+            <button class="chat-dd-item share-dd"
+                    onclick="shareChat('${safeId}',event);closeChatMenus()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Share
+            </button>
+            <div class="chat-dd-separator"></div>
+            <button class="chat-dd-item delete-dd"
+                    onclick="deleteChat('${safeId}',event);closeChatMenus()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+              Delete
+            </button>
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -482,8 +506,52 @@ async function loadChatList() {
   }
 }
 
+window.toggleChatMenu = function (chatId, e) {
+  e.stopPropagation();
+  const menu = document.getElementById('menu-' + chatId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeChatMenus();
+  if (!isOpen) {
+    const btnRect = e.currentTarget.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = (btnRect.bottom + 4) + 'px';
+    menu.style.left = 'auto';
+    menu.style.right = (window.innerWidth - btnRect.right) + 'px';
+    menu.style.bottom = 'auto';
+    menu.classList.add('open');
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight - 16) {
+        menu.style.top = 'auto';
+        menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
+      }
+    });
+  }
+};
+
+window.closeChatMenus = function () {
+  document.querySelectorAll('.chat-dropdown.open, .doc-dropdown.open')
+    .forEach(m => {
+      m.classList.remove('open', 'flip-up', 'flip-left');
+      m.style.position = '';
+      m.style.top = '';
+      m.style.left = '';
+      m.style.right = '';
+      m.style.bottom = '';
+    });
+};
+
+// Global click/scroll → close any open dropdowns
+document.addEventListener('click', () => {
+  if (typeof closeChatMenus === 'function') closeChatMenus();
+});
+document.addEventListener('scroll', () => {
+  if (typeof closeChatMenus === 'function') closeChatMenus();
+}, true);
+
 // ──────────────────────────────────────────────────────────
-// Load docs panel  (with per-chip remove button)
+// Load docs panel  — always-visible three-dots (⋮) per chip
 // ──────────────────────────────────────────────────────────
 async function loadDocs(chatId) {
   try {
@@ -493,25 +561,100 @@ async function loadDocs(chatId) {
       el('docsList').innerHTML = `<div class="docs-empty"><p>No files yet. Upload below.</p></div>`;
       return;
     }
-    el('docsList').innerHTML = docs.map(d => `
-      <div class="doc-chip" data-doc-id="${d.id}" title="${escHtml(d.filename)}">
+    el('docsList').innerHTML = docs.map(d => {
+      const safeFile = escHtml(d.filename).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `<div class="doc-chip" data-doc-id="${d.id}" title="${escHtml(d.filename)}">
         <span class="doc-chip-icon">${fileIcon(d.file_type)}</span>
         <div class="doc-chip-info">
-          <span class="doc-chip-name">${escHtml(truncate(d.filename, 22))}</span>
+          <span class="doc-chip-name">${escHtml(truncate(d.filename, 18))}</span>
           <span class="doc-chip-meta">${d.num_pages} pg · ${d.num_chunks} chunks</span>
         </div>
-        <button class="doc-chip-remove"
-                onclick="removeDocument('${chatId}', ${d.id}, '${escHtml(d.filename).replace(/'/g, "\\'")}', event)"
-                title="Remove document">
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>`).join('');
+        <div class="doc-chip-menu" onclick="event.stopPropagation()">
+          <button class="doc-dots-btn" title="More options"
+                  onclick="toggleDocMenu('doc-dd-${d.id}', event)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="1.8"/>
+              <circle cx="12" cy="12" r="1.8"/>
+              <circle cx="12" cy="19" r="1.8"/>
+            </svg>
+          </button>
+          <div class="doc-dropdown" id="doc-dd-${d.id}">
+            <button class="doc-dd-item download-dd"
+                    onclick="downloadDocument('${chatId}',${d.id},'${safeFile}',event);closeChatMenus()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download
+            </button>
+            <div class="chat-dd-separator"></div>
+            <button class="doc-dd-item remove-dd"
+                    onclick="removeDocument('${chatId}',${d.id},'${safeFile}',event);closeChatMenus()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   } catch (e) {
     console.error('loadDocs:', e);
   }
 }
+
+window.toggleDocMenu = function (id, e) {
+  e.stopPropagation();
+  const menu = document.getElementById(id);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeChatMenus();
+  if (!isOpen) {
+    const btnRect = e.currentTarget.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = (btnRect.bottom + 4) + 'px';
+    menu.style.left = 'auto';
+    menu.style.right = (window.innerWidth - btnRect.right) + 'px';
+    menu.style.bottom = 'auto';
+    menu.classList.add('open');
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth - 12) {
+        menu.style.left = 'auto';
+        menu.style.right = (window.innerWidth - btnRect.right) + 'px';
+      }
+      if (rect.bottom > window.innerHeight - 12) {
+        menu.style.top = 'auto';
+        menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
+      }
+    });
+  }
+};
+
+window.downloadDocument = async function (chatId, docId, filename, e) {
+  if (e) e.stopPropagation();
+  try {
+    showToast('Preparing download…', 'info', 2000);
+    const res = await fetch(`/api/chat/${chatId}/document/${docId}/download`);
+    if (!res.ok) throw new Error('Download not available from server');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    showToast(`✓ Downloaded "${filename}"`, 'success');
+  } catch (err) {
+    showToast('Download failed: ' + err.message, 'error');
+  }
+};
 
 // ──────────────────────────────────────────────────────────
 // Load history
@@ -541,18 +684,55 @@ async function loadHistory(chatId) {
 // ──────────────────────────────────────────────────────────
 // Render a message bubble
 // ──────────────────────────────────────────────────────────
+
+
+// ──────────────────────────────────────────────────────────
+// Load history
+// ──────────────────────────────────────────────────────────
+async function loadHistory(chatId) {
+  try {
+    const msgs = await api('GET', `/api/chat/${chatId}/history`);
+    el('messagesList').innerHTML = '';
+    if (!msgs.length) {
+      el('messagesList').innerHTML = `<div class="chat-hint" id="chatHint">
+        <div class="hint-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <p>Upload a document below, then ask any question about it.</p>
+      </div>`;
+      return;
+    }
+    msgs.forEach(m => renderMessage(m.role, m.content, m.citations || []));
+    scrollToBottom(true);
+  } catch (e) {
+    console.error('loadHistory:', e);
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Render a message bubble
+// ──────────────────────────────────────────────────────────
+const _LOGO_IMG = `<img src="/static/logo.svg" alt="RAG" style="width:100%;height:100%;object-fit:contain;padding:3px;border-radius:4px;"/>`;
 function renderMessage(role, content, citations = [], streaming = false) {
   const msgEl = document.createElement('div');
   msgEl.className = `message ${role}`;
 
   const avatarHtml = role === 'user'
-    ? `<div class="avatar avatar-user">YOU</div>`
-    : `<div class="avatar avatar-ai">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-        </svg>
-      </div>`;
+    ? `<div class="avatar-container">
+         <div class="avatar avatar-user">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+             <circle cx="12" cy="7" r="4"></circle>
+           </svg>
+         </div>
+         <span class="avatar-name">You</span>
+       </div>`
+    : `<div class="avatar-container">
+         <div class="avatar avatar-ai">${_LOGO_IMG}</div>
+         <span class="avatar-name">RAG Agent</span>
+       </div>`;
 
   const bubbleId = `bubble-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const html = streaming ? content : formatMarkdown(content);
@@ -622,13 +802,11 @@ function showThinking() {
   d.id = 'thinkingIndicator';
   d.innerHTML = `
     <div class="message-row">
-      <div class="avatar avatar-ai">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-        </svg>
+      <div class="avatar-container">
+        <div class="avatar avatar-ai">${_LOGO_IMG}</div>
+        <span class="avatar-name">RAG Agent</span>
       </div>
-      <div class="thinking-indicator">
+      <div class="bubble thinking-bubble">
         <div class="thinking-dots"><span></span><span></span><span></span></div>
         <span class="thinking-text">Searching documents…</span>
       </div>
@@ -1084,13 +1262,18 @@ function updateSendBtn() {
 // Utilities
 // ──────────────────────────────────────────────────────────
 function scrollToBottom(force = false) {
+  // Double rAF: first frame lets layout settle, second frame performs scroll
   requestAnimationFrame(() => {
-    const a = el('messagesArea');
-    if (!a) return;
-    const isNearBottom = a.scrollHeight - a.scrollTop - a.clientHeight < 120;
-    if (force || isNearBottom) {
-      a.scrollTop = a.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      const area = el('messagesArea');
+      if (!area) return;
+      const distFromBottom = area.scrollHeight - area.scrollTop - area.clientHeight;
+      const isNearBottom = distFromBottom < 140;
+      if (force || isNearBottom) {
+        // Use smooth scroll for a nice feel; instant if forced during rapid streaming
+        area.scrollTo({ top: area.scrollHeight, behavior: force ? 'instant' : 'smooth' });
+      }
+    });
   });
 }
 function escHtml(s) {

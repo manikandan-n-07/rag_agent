@@ -31,7 +31,9 @@ import rag_engine
 # ──────────────────────────────────────────────────────────
 BASE_DIR  = os.path.dirname(__file__)
 UPLOAD_TMP = os.path.join(BASE_DIR, "upload_tmp")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_TMP, exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".pdf", ".html", ".htm", ".txt", ".docx", ".md"}
 
@@ -118,6 +120,10 @@ def delete_chat(chat_id: str):
     store_dir = os.path.join(rag_engine.VECTOR_STORE_ROOT, chat_id)
     if os.path.exists(store_dir):
         shutil.rmtree(store_dir, ignore_errors=True)
+    # Remove the uploaded files for this chat
+    uploads_dir = os.path.join(UPLOADS_DIR, chat_id)
+    if os.path.exists(uploads_dir):
+        shutil.rmtree(uploads_dir, ignore_errors=True)
     return jsonify({"success": True, "deleted": chat_id})
 
 
@@ -170,9 +176,26 @@ def delete_document(chat_id: str, doc_id: int):
     db.delete_document(doc_id)
     # Rebuild FAISS index without this file's chunks
     removed_chunks = rag_engine.remove_document_from_index(chat_id, filename)
+    # Remove the file from uploads
+    file_path = os.path.join(UPLOADS_DIR, chat_id, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
     return jsonify({"success": True, "filename": filename, "chunks_removed": removed_chunks})
 
 
+@app.route("/api/chat/<chat_id>/document/<int:doc_id>/download", methods=["GET"])
+def download_document(chat_id: str, doc_id: int):
+    """Download a previously uploaded document."""
+    from flask import send_file
+    doc = db.get_document_by_id(doc_id)
+    if not doc or doc["chat_id"] != chat_id:
+        return _error("Document not found", 404)
+        
+    file_path = os.path.join(UPLOADS_DIR, chat_id, doc["filename"])
+    if not os.path.exists(file_path):
+        return _error("Download not available from server", 404)
+        
+    return send_file(file_path, as_attachment=True, download_name=doc["filename"])
 # ──────────────────────────────────────────────────────────
 # Routes — File upload
 # ──────────────────────────────────────────────────────────
@@ -200,12 +223,14 @@ def upload_file():
         return _error(f"File type not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
 
     filename = secure_filename(f.filename)
-    tmp_path = os.path.join(UPLOAD_TMP, f"{uuid.uuid4()}_{filename}")
-    f.save(tmp_path)
+    chat_dir = os.path.join(UPLOADS_DIR, chat_id)
+    os.makedirs(chat_dir, exist_ok=True)
+    saved_path = os.path.join(chat_dir, filename)
+    f.save(saved_path)
 
     def generate():
         try:
-            for progress_event in rag_engine.ingest_file_stream(chat_id, tmp_path, filename):
+            for progress_event in rag_engine.ingest_file_stream(chat_id, saved_path, filename):
                 if progress_event["status"] == "done":
                     result = progress_event["result"]
                     doc = db.add_document(
@@ -226,9 +251,6 @@ def upload_file():
                     yield _sse({"type": "progress", "data": progress_event})
         except Exception as e:
             yield _sse({"type": "error", "message": f"Ingestion failed: {e}"})
-        finally:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
 
     return Response(generate(), mimetype="text/event-stream")
 
