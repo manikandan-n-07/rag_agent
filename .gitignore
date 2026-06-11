@@ -50,3 +50,4 @@ rag_chat.db-shm
 rag_chat.db-wal
 documents/
 vector_store/
+uploads/
